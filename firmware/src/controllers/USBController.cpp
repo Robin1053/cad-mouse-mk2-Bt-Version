@@ -1,7 +1,5 @@
 #include "controllers/USBController.h"
-
 #include <math.h>
-
 #include "Config.h"
 
 namespace
@@ -60,70 +58,113 @@ namespace
       0x75, 0x08,       // HEX: REPORT_SIZE (8)       -> 8 Bit (1 Byte) Datenbreite
       0x95, 0x01,       // HEX: REPORT_COUNT (1)      -> 1 kombiniertes Statusbyte
       0x81, 0x02,       // HEX: INPUT (Data,Var,Abs)
-      0xC0,             // HEX: END_COLLECTION
+      0xC0,             // END_COLLECTION
 
       0xC0 // END_COLLECTION (Abschluss des Gesamt-Reports)
   };
+} // namespace -> WICHTIG: Namespace schliesst hier, damit der Controller global sichtbar ist!
 
-  void USBController::begin()
+void USBController::begin()
+{
+  if (!TinyUSBDevice.ready())
   {
-    if (!TinyUSBDevice.ready())
-    {
-      TinyUSBDevice.begin(0);
-    }
-    usbHid_.setReportDescriptor(kHidReportDescriptor, sizeof(kHidReportDescriptor));
-    usbHid_.setPollInterval(1);
-    usbHid_.begin();
+    TinyUSBDevice.begin(0);
   }
 
-  void USBController::task() { TinyUSBDevice.task(); }
+  // Sichere Variableninitialisierung für den nRF52-Compiler
+  lastSentAxes_ = {0, 0, 0, 0, 0, 0};
+  buttonBitsSent_ = 0xFFFF;
+  lastBatterySend_ = 0;
 
-  USBController::ReportAxes USBController::makeAxesReport(const float motion[6])
+  usbHid_.setReportDescriptor(kHidReportDescriptor, sizeof(kHidReportDescriptor));
+  usbHid_.setPollInterval(1);
+  usbHid_.begin();
+}
+
+void USBController::task() { TinyUSBDevice.task(); }
+
+USBController::ReportAxes USBController::makeAxesReport(const float motion[6])
+{
+  ReportAxes axes{};
+  axes.x = static_cast<int16_t>(motion[0]);
+  axes.y = static_cast<int16_t>(motion[1]);
+  axes.z = static_cast<int16_t>(motion[2]);
+  axes.rx = static_cast<int16_t>(motion[3]);
+  axes.ry = static_cast<int16_t>(motion[4]);
+  axes.rz = static_cast<int16_t>(motion[5]);
+  return axes;
+}
+
+bool USBController::axesReportChanged(const ReportAxes &axes) const
+{
+  return axes.x != lastSentAxes_.x ||
+         axes.y != lastSentAxes_.y ||
+         axes.z != lastSentAxes_.z ||
+         axes.rx != lastSentAxes_.rx ||
+         axes.ry != lastSentAxes_.ry ||
+         axes.rz != lastSentAxes_.rz;
+}
+
+// Hardware-Akkumessung über den internen ADC des XIAO BLE
+uint8_t USBController::readBatteryPercentage()
+{
+  analogReference(AR_INTERNAL_3_6);
+  analogReadResolution(12);
+
+  uint32_t raw_adc = analogRead(PIN_VBAT);
+
+  float voltage = (raw_adc * 3600.0) / 4096.0 * ((1510.0 + 510.0) / 510.0);
+
+  int percentage = (voltage - 3500) * 100 / (4200 - 3500);
+  if (percentage > 100)
+    percentage = 100;
+  if (percentage < 0)
+    percentage = 0;
+
+  return static_cast<uint8_t>(percentage);
+}
+
+bool USBController::sendReports(const float motion[6], uint16_t buttonBits)
+{
+  const ReportAxes axes = makeAxesReport(motion);
+  const bool sendAxes = axesReportChanged(axes);
+  const bool sendButtons = (buttonBits != buttonBitsSent_);
+
+  if (!usbHid_.ready())
   {
-    ReportAxes axes{};
-    axes.x = static_cast<int16_t>(motion[0]);
-    axes.y = static_cast<int16_t>(motion[1]);
-    axes.z = static_cast<int16_t>(motion[2]);
-    axes.rx = static_cast<int16_t>(motion[3]);
-    axes.ry = static_cast<int16_t>(motion[4]);
-    axes.rz = static_cast<int16_t>(motion[5]);
-    return axes;
+    return false;
   }
 
-  bool USBController::axesReportChanged(const ReportAxes &axes) const
+  // 1. Sende Achsen (Report ID 0x01)
+  if (sendAxes)
   {
-    return axes.x != lastSentAxes_.x ||
-           axes.y != lastSentAxes_.y ||
-           axes.z != lastSentAxes_.z ||
-           axes.rx != lastSentAxes_.rx ||
-           axes.ry != lastSentAxes_.ry ||
-           axes.rz != lastSentAxes_.rz;
+    usbHid_.sendReport(0x01, &axes, sizeof(axes));
+    lastSentAxes_ = axes;
   }
 
-  bool USBController::sendReports(const float motion[6], uint16_t buttonBits)
+  // 2. Sende Buttons (Report ID 0x03)
+  if (sendButtons)
   {
-    const ReportAxes axes = makeAxesReport(motion);
-    const bool sendAxes = axesReportChanged(axes);
-    const bool sendButtons = (buttonBits != buttonBitsSent_);
-
-    if (!usbHid_.ready() || (!sendAxes && !sendButtons))
-    {
-      return false;
-    }
-
-    if (sendAxes)
-    {
-      usbHid_.sendReport(0x01, &axes, sizeof(axes));
-      lastSentAxes_ = axes;
-    }
-
-    if (sendButtons)
-    {
-      ReportButtons btn{};
-      btn.bits = buttonBits & 0x0003;
-      usbHid_.sendReport(0x03, &btn, sizeof(btn));
-      buttonBitsSent_ = buttonBits;
-    }
-
-    return true;
+    ReportButtons btn{};
+    btn.bits = buttonBits & 0x0003;
+    usbHid_.sendReport(0x03, &btn, sizeof(btn));
+    buttonBitsSent_ = buttonBits;
   }
+
+  // 3. Sende zyklisch den Batteriebericht (Report ID 0x04)
+  if (millis() - lastBatterySend_ > 10000)
+  {
+    lastBatterySend_ = millis();
+
+    ReportBattery bat{};
+    bat.percentage = readBatteryPercentage();
+
+    // Wenn Strom am USB anliegt, lädt das Board automatisch
+    bool vbusVorhanden = (NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk);
+    bat.isCharging = vbusVorhanden ? 1 : 0;
+
+    usbHid_.sendReport(0x04, &bat, sizeof(bat));
+  }
+
+  return sendAxes || sendButtons || (millis() - lastBatterySend_ < 20);
+}

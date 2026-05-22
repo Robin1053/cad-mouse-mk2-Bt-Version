@@ -6,14 +6,17 @@
 #include "Controllers.h"
 #include "StateMachine.h"
 
-void SleepState::enter() {
+void SleepState::enter()
+{
   ledController.off();
 }
 
-void SleepState::update() {
+void SleepState::update()
+{
   inputController.update();
 
-  if (inputController.takeActivity()) {
+  if (inputController.takeActivity())
+  {
     stateMachine.changeState(&StateMachine::idleState);
     return;
   }

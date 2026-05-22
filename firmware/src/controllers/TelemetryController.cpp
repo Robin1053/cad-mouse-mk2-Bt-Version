@@ -2,8 +2,9 @@
 #include <Arduino.h>
 #include "Config.h"
 
-namespace {
-const int kPrintEvery = 5;
+namespace
+{
+  const int kPrintEvery = 5;
 }
 
 void TelemetryController::begin() { tick_ = 0; }
@@ -11,13 +12,16 @@ void TelemetryController::begin() { tick_ = 0; }
 bool TelemetryController::enabled() const { return Config::ENABLE_TELEMETRY; }
 
 void TelemetryController::publish(const float motion[6], int buttonBits,
-                                  bool hidReportSent) {
-  if (!enabled()) {
+                                  bool hidReportSent)
+{
+  if (!enabled())
+  {
     return;
   }
 
   tick_++;
-  if ((tick_ % kPrintEvery) != 0) {
+  if ((tick_ % kPrintEvery) != 0)
+  {
     return;
   }
 

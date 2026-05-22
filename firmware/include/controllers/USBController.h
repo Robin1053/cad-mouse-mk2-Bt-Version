@@ -23,7 +23,7 @@ public:
     uint16_t bits;
   };
 
-  // NEU: Struktur für das kombinierte Batterie-Byte (1 Byte Gesamtgröße)
+  // Struktur für das kombinierte Batterie-Byte (1 Byte Gesamtgröße)
   struct __attribute__((packed)) ReportBattery
   {
     uint8_t percentage : 7; // Bit 0-6: Akkustand (0 bis 100)
@@ -39,17 +39,15 @@ private:
   // Interne Hilfsfunktionen
   ReportAxes makeAxesReport(const float motion[6]);
   bool axesReportChanged(const ReportAxes &axes) const;
-
-  // NEU: Funktion misst die Hardware-Spannung des XIAO BLE
   uint8_t readBatteryPercentage();
 
-  // Interne Variablen zur Speicherung des letzten Status
+  // Interne Variablen zur Speicherung des letzten Status (Ohne Klammer-Initialisierung)
   Adafruit_USBD_HID usbHid_;
-  ReportAxes lastSentAxes_{};
-  uint16_t buttonBitsSent_ = 0xFFFF;
+  ReportAxes lastSentAxes_;
+  uint16_t buttonBitsSent_;
 
-  // NEU: Speicher für den letzten Sendezeitpunkt des Akkus
-  uint32_t lastBatterySend_ = 0;
+  // Speicher für den letzten Sendezeitpunkt des Akkus
+  uint32_t lastBatterySend_;
 };
 
 #endif // USB_CONTROLLER_H_

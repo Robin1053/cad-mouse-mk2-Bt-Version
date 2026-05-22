@@ -11,12 +11,14 @@ SensorController::SensorController()
 
 void SensorController::powerOff(int pin) { digitalWrite(pin, LOW); }
 
-void SensorController::powerOn(int pin) {
+void SensorController::powerOn(int pin)
+{
   digitalWrite(pin, HIGH);
   delay(5);
 }
 
-void SensorController::begin() {
+void SensorController::begin()
+{
 
   pinMode(Config::PIN_MAG1_LS, OUTPUT);
   pinMode(Config::PIN_MAG2_LS, OUTPUT);
@@ -51,7 +53,8 @@ void SensorController::begin() {
   delay(10);
 }
 
-void SensorController::readRaw(float out[9]) {
+void SensorController::readRaw(float out[9])
+{
   double mag1x = 0, mag1y = 0, mag1z = 0, temp1 = 0;
   double mag2x = 0, mag2y = 0, mag2z = 0, temp2 = 0;
   double mag3x = 0, mag3y = 0, mag3z = 0, temp3 = 0;
@@ -72,24 +75,29 @@ void SensorController::readRaw(float out[9]) {
   out[8] = mag3z;
 }
 
-void SensorController::beginCalibration() {
+void SensorController::beginCalibration()
+{
   calibrationActive_ = true;
   calibrationDone_ = false;
   calibrationSamples_ = 0;
   lastCalibrationSampleMs_ = 0;
-  for (int i = 0; i < 9; i++) {
+  for (int i = 0; i < 9; i++)
+  {
     calibrationSum_[i] = 0.0;
   }
 }
 
-void SensorController::updateCalibration() {
-  if (!calibrationActive_) {
+void SensorController::updateCalibration()
+{
+  if (!calibrationActive_)
+  {
     return;
   }
 
   const unsigned long now = millis();
   if (lastCalibrationSampleMs_ != 0 &&
-      (now - lastCalibrationSampleMs_) < 10) {
+      (now - lastCalibrationSampleMs_) < 10)
+  {
     return;
   }
   lastCalibrationSampleMs_ = now;
@@ -97,16 +105,19 @@ void SensorController::updateCalibration() {
   float raw[9] = {};
   readRaw(raw);
 
-  for (int i = 0; i < 9; i++) {
+  for (int i = 0; i < 9; i++)
+  {
     calibrationSum_[i] += raw[i];
   }
 
   calibrationSamples_++;
-  if (calibrationSamples_ < Config::ZERO_SAMPLES) {
+  if (calibrationSamples_ < Config::ZERO_SAMPLES)
+  {
     return;
   }
 
-  for (int i = 0; i < 9; i++) {
+  for (int i = 0; i < 9; i++)
+  {
     baseline_[i] = calibrationSum_[i] / Config::ZERO_SAMPLES;
   }
 
@@ -116,4 +127,4 @@ void SensorController::updateCalibration() {
 
 bool SensorController::calibrationDone() const { return calibrationDone_; }
 
-const float* SensorController::baseline() const { return baseline_; }
+const float *SensorController::baseline() const { return baseline_; }

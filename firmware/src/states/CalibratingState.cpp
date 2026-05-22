@@ -6,18 +6,21 @@
 #include "Controllers.h"
 #include "StateMachine.h"
 
-void CalibratingState::enter() {
+void CalibratingState::enter()
+{
   sensorController.beginCalibration();
   motionController.reset();
   ledController.startSpinner(Config::LED_CALIBRATING_COLOR);
 }
 
-void CalibratingState::update() {
+void CalibratingState::update()
+{
   inputController.update();
   ledController.updateSpinner();
   sensorController.updateCalibration();
 
-  if (sensorController.calibrationDone()) {
+  if (sensorController.calibrationDone())
+  {
     stateMachine.changeState(&StateMachine::idleState);
   }
 }

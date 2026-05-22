@@ -5,20 +5,24 @@ LEDController::LEDController()
     : ring_(Config::LED_COUNT, Config::PIN_LED_DATA,
             NEO_GRB + NEO_KHZ800) {}
 
-void LEDController::fillAll(unsigned long color) {
-  for (int i = 0; i < ring_.numPixels(); i++) {
+void LEDController::fillAll(unsigned long color)
+{
+  for (int i = 0; i < ring_.numPixels(); i++)
+  {
     ring_.setPixelColor(i, color);
   }
 }
 
-unsigned long LEDController::toNeoColor(unsigned long color) {
+unsigned long LEDController::toNeoColor(unsigned long color)
+{
   int r = (color >> 16) & 0xFF;
   int g = (color >> 8) & 0xFF;
   int b = color & 0xFF;
   return ring_.Color(r, g, b);
 }
 
-void LEDController::begin() {
+void LEDController::begin()
+{
   pinMode(Config::PIN_LED_LS, OUTPUT);
   digitalWrite(Config::PIN_LED_LS, LOW);
 
@@ -27,18 +31,20 @@ void LEDController::begin() {
   ring_.show();
 }
 
-void LEDController::setPower(bool enabled) {
-  if (enabled == isPowered_) {
+void LEDController::setPower(bool enabled)
+{
+  if (enabled == isPowered_)
+  {
     return;
   }
 
   isPowered_ = enabled;
   digitalWrite(Config::PIN_LED_LS, enabled ? HIGH : LOW);
   delay(10);
-  
 }
 
-void LEDController::setSolid(unsigned long color) {
+void LEDController::setSolid(unsigned long color)
+{
   mode_ = Mode::Solid;
   color_ = toNeoColor(color);
   setPower(true);
@@ -46,7 +52,8 @@ void LEDController::setSolid(unsigned long color) {
   ring_.show();
 }
 
-void LEDController::startSpinner(unsigned long color) {
+void LEDController::startSpinner(unsigned long color)
+{
   mode_ = Mode::Spinner;
   color_ = toNeoColor(color);
   spinnerIndex_ = 0;
@@ -54,13 +61,16 @@ void LEDController::startSpinner(unsigned long color) {
   setPower(true);
 }
 
-void LEDController::updateSpinner() {
-  if (mode_ != Mode::Spinner) {
+void LEDController::updateSpinner()
+{
+  if (mode_ != Mode::Spinner)
+  {
     return;
   }
 
   const unsigned long now = millis();
-  if (lastSpinnerStepMs_ != 0 && (now - lastSpinnerStepMs_) < 60) {
+  if (lastSpinnerStepMs_ != 0 && (now - lastSpinnerStepMs_) < 60)
+  {
     return;
   }
   lastSpinnerStepMs_ = now;
@@ -71,12 +81,14 @@ void LEDController::updateSpinner() {
   ring_.show();
 
   spinnerIndex_++;
-  if (spinnerIndex_ >= pixelCount) {
+  if (spinnerIndex_ >= pixelCount)
+  {
     spinnerIndex_ = 0;
   }
 }
 
-void LEDController::off() {
+void LEDController::off()
+{
   mode_ = Mode::Off;
   fillAll(0);
   ring_.show();
